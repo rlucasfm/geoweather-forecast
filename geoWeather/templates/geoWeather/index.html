@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeoWeather</title>
+    {% load static %}
+    <link rel="shortcut icon" href="{% static 'favicon.ico' %}" type="image/x-icon">
+
+<style>
+    h1, h2, h3, p {
+        font-family: Open Sans;
+    }
+
+    .vertical-center {
+    margin: 0;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    -ms-transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%);
+    }
+</style>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+</head>
+<body>
+
+<div class="vertical-center" style="text-align: center">
+    <h3>Atualmente em</h3>
+    <h1 id="cidade">Cidade</h1>
+    <h2 id="temp">00,00º C</h2>
+    <h2 id="desc" style="text-transform: capitalize">descricao</h2>
+    <p id="at"><em>Última atualização: 01 de Janeiro de 2021 às 00:00 GMT</em></p>
+</div>
+
+<script>
+// Step 1: Get user coordinates
+    function getCoordinates() {
+        var options = {
+            enableHighAccuracy: true,
+            timeout: 5000,
+            maximumAge: 24 * 60 * 60 * 1000
+        };
+    
+        function success(pos) {
+            var crd = pos.coords;
+            var lat = crd.latitude.toString();
+            var lng = crd.longitude.toString();
+            var coordinates = [lat, lng];
+            //console.log(`Latitude: ${lat}, Longitude: ${lng}`);
+            getCity(coordinates);
+            return;  
+        }
+    
+        function error(err) {
+            console.warn(`ERROR(${err.code}): ${err.message}`);
+        }
+    
+        navigator.geolocation.getCurrentPosition(success, error, options);
+    }
+    
+    // Step 2: Get city name
+    function getCity(coordinates) {
+        var xhr = new XMLHttpRequest();
+        var lat = coordinates[0];
+        var lng = coordinates[1];
+    
+        // Paste your LocationIQ token below.
+        xhr.open('GET', "https://us1.locationiq.com/v1/reverse.php?key=pk.9cd079ff1b8046290062b17f3140117a&lat=" +
+        lat + "&lon=" + lng + "&format=json", true);
+        xhr.send();
+        xhr.onreadystatechange = processRequest;
+        xhr.addEventListener("readystatechange", processRequest, false);
+    
+        latch = true;
+        function processRequest(e) {
+            if (xhr.readyState == 4 && xhr.status == 200) {
+                var response = JSON.parse(xhr.responseText);
+                var city = response.address.city;
+                var country = response.address.country;                
+                
+                if(latch)
+                {
+                    $.get('/geo/' + city + '/' + country, (data) => {   
+                        let dateObj = new Date();                     
+                        let response = JSON.parse(data);
+                        $('#cidade').html(response.cidade);
+                        $('#temp').html(parseFloat(response.temperatura).toFixed(2).toString().replace('.', ',') + ' ºC');
+                        $('#desc').html(response.descricao);
+                        $('#at').html('Última atualização: ' + dateObj.toLocaleDateString('pt-BR', {year: 'numeric', month: 'long', day: 'numeric'}) + ' às ' + dateObj.getHours() + ':' + dateObj.getMinutes());   
+                    });    
+                    latch = false;
+                }                
+
+                return;
+            }
+        }
+    }
+
+    getCoordinates();    
+</script>
+
+</body>
+</html>
